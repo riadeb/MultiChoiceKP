@@ -64,7 +64,7 @@ public class Reader {
     }
 
     public static void main(String[] args) throws Exception {
-        Reader rr = new Reader("testfiles-2/test5.txt");
+        Reader rr = new Reader("testfiles-2/test4.txt");
         System.out.print("Maximum rate found by DP1 is : "); System.out.println(rr.DP_1());
         System.out.print("Maximum rate found by DP2 is : "); System.out.println(rr.DP_2(rr.upper_bnd_Rate));
 
@@ -72,6 +72,7 @@ public class Reader {
         rr.remove_IP_dominated();
         rr.remove_LP_dominated();
         Solution sol = rr.greedy_LP();
+        //rr.visualize_data(0,"dd");
         System.out.print("Maximum rate is : "); System.out.println(sol.Rate);
         for(ArrayList l:sol.data)  System.out.println(l);
         double max_r = rr.LP_solver();
@@ -168,7 +169,7 @@ public class Reader {
             for (int i = 1; i < channel_n.size(); i++) {
                 curr_pair = channel_n.get(i);
                 pair prev_pair = channel_n.get(i - 1);
-                curr_pair.inc_eff = (curr_pair.r - prev_pair.r) / (curr_pair.p - prev_pair.p);
+                curr_pair.inc_eff = Double.valueOf(curr_pair.r - prev_pair.r) / (curr_pair.p - prev_pair.p);
                 curr_pair.inc_rate = (curr_pair.r - prev_pair.r);
                 curr_pair.inc_power = (curr_pair.p - prev_pair.p);
                 pairs_sorted_eff.add(curr_pair);
@@ -196,6 +197,7 @@ public class Reader {
             solutions[curr_pair.n].add(sol);
             i++;
         }
+
         if (Power_Bud > 0 && i < sorted_inc.size()) {
             curr_pair = sorted_inc.get(i);
             double x = Double.valueOf(Power_Bud)/curr_pair.inc_power;
@@ -265,6 +267,9 @@ public class Reader {
     }
 
     int DP_1(){ //First Implementation of Dynamic programming
+        /*
+        L[p-1] holds maximum rate with power budget p
+          */
         int[] L = new int[p];
         for(int i = 1; i <= p; i++) {
             int maxr = 0;
@@ -275,13 +280,13 @@ public class Reader {
         }
         for(int i =1; i < N; i++){
             int[] tempL = new int[p];
-            for (int power = 0; power <p; power++) {
+            for (int power = 1; power <= p; power++) {
                 ArrayList<pair> curr_channel = data[i];
                 int max_r = 0;
                 for(pair pp:curr_channel) {
                     if (pp.p < power && L[power-pp.p - 1] > 0) max_r = Math.max(max_r,L[power-pp.p - 1] + pp.r);
                 }
-                tempL[power] = max_r;
+                tempL[power-1] = max_r;
             }
             L = tempL;
         }
