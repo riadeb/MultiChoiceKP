@@ -1,7 +1,12 @@
 import java.lang.reflect.Array;
 import java.util.*;
 import  java.io.File;
+import scpsolver.lpsolver.LinearProgramSolver;
+import scpsolver.lpsolver.SolverFactory;
+import scpsolver.problems.LinearProgram;
+import  scpsolver.constraints.*;
 
+import javax.rmi.ssl.SslRMIClientSocketFactory;
 
 
 public class Reader {
@@ -11,6 +16,7 @@ public class Reader {
     int N;
     String filename;
     ArrayList<pair>[] data;
+    int upper_bnd_Rate;
 
     public Reader(String filename) throws Exception {
         File file = new File(filename);
@@ -37,12 +43,15 @@ public class Reader {
             }
         }
         for (int i = 0; i < N; i++) {
+            int maxr = 0;
             for (int k = 0; k < K; k++) {
                 String[] newline = sc.nextLine().stripLeading().split("   ");
                 for (int m = 0; m < M; m++) {
                     r_values[i][k][m] = Double.valueOf(newline[m]).intValue();
+                    maxr = Math.max(maxr,Double.valueOf(newline[m]).intValue());
                 }
             }
+            this.upper_bnd_Rate += maxr;
         }
         for (int i = 0; i < N; i++) {
             for (int k = 0; k < K; k++) {
@@ -55,14 +64,18 @@ public class Reader {
     }
 
     public static void main(String[] args) throws Exception {
-        Reader rr = new Reader("testfiles-2/test1.txt");
+        Reader rr = new Reader("testfiles-2/test5.txt");
+        System.out.print("Maximum rate found by DP1 is : "); System.out.println(rr.DP_1());
+        System.out.print("Maximum rate found by DP2 is : "); System.out.println(rr.DP_2(rr.upper_bnd_Rate));
+
         rr.remove_impossible_terms();
         rr.remove_IP_dominated();
         rr.remove_LP_dominated();
-        rr.visualize_data(3, " After removing LP dominated terms");
         Solution sol = rr.greedy_LP();
         System.out.print("Maximum rate is : "); System.out.println(sol.Rate);
         for(ArrayList l:sol.data)  System.out.println(l);
+        double max_r = rr.LP_solver();
+        System.out.print("Maximum rate fond by LP_solver is : ");System.out.println(max_r);
 
     }
 
@@ -184,7 +197,8 @@ public class Reader {
             i++;
         }
         if (Power_Bud > 0 && i < sorted_inc.size()) {
-            double x = Power_Bud/curr_pair.inc_power;
+            curr_pair = sorted_inc.get(i);
+            double x = Double.valueOf(Power_Bud)/curr_pair.inc_power;
 
             sol_pair sol1 = new sol_pair(curr_pair.p,curr_pair.r,curr_pair.user,curr_pair.m,curr_pair.n,x);
             pair prev_pair = solutions[sol1.n].get(0);
@@ -194,13 +208,121 @@ public class Reader {
             solutions[sol1.n].clear();
             solutions[sol1.n].add(sol2);
             solutions[sol1.n].add(sol1);
-            System.out.println(Power_Bud);
 
         }
         return new Solution(Rate,solutions);
 
 
     }
+
+    double LP_solver() {
+        ArrayList<Double> rates = new ArrayList<Double>();
+        ArrayList<Double> powers = new ArrayList<Double>();
+        int[] channels_sizes = new int[N];
+        for(int i = 0; i < N; i++) {
+            for (pair p:data[i]){
+                rates.add(Double.valueOf(p.r));
+                powers.add(Double.valueOf(p.p));
+            }
+            if (i==0) channels_sizes[i] = 0;
+            else channels_sizes[i] = channels_sizes[i-1] + data[i-1].size();
+        }
+        LinearProgram lp = new LinearProgram(rates.stream().mapToDouble(Double::doubleValue).toArray());
+        lp.addConstraint(new LinearSmallerThanEqualsConstraint(powers.stream().mapToDouble(Double::doubleValue).toArray(), this.p, "power budget constraint"));
+        for(int i = 0; i < N; i++) {
+            ArrayList<Double> sparse_vec_ch_i = new ArrayList<Double>(); //to hold the list used to build the ith constraint
+            Double[] zeros_arr_before = new Double[channels_sizes[i]];
+            Arrays.fill(zeros_arr_before,0.0);
+            Collections.addAll(sparse_vec_ch_i,zeros_arr_before);
+            Double[] ones_arr = new Double[data[i].size()];
+            Arrays.fill(ones_arr,1.0);
+            Collections.addAll(sparse_vec_ch_i,ones_arr);
+            if (i < N-1) {
+                Double[] zeros_arr_after = new Double[channels_sizes[N-1] + data[N-1].size() - channels_sizes[i+1]];
+                Arrays.fill(zeros_arr_after,0.0);
+                Collections.addAll(sparse_vec_ch_i,zeros_arr_after);
+            }
+            lp.addConstraint(new LinearEqualsConstraint(sparse_vec_ch_i.stream().mapToDouble(Double::doubleValue).toArray(),1.0,"One user per channel constraint" + String.valueOf(i)));
+
+        }
+        double[] is_int = new double[rates.size()];
+        for (int i = 0; i < rates.size(); i++) {
+            is_int[i] = 0;
+        }
+        lp.setLowerbound(is_int);
+
+        LinearProgramSolver solver  = SolverFactory.newDefault();
+
+        double[] sol = solver.solve(lp);
+
+
+        double maxrate = 0;
+        for (int i = 0; i < rates.size();i++){
+            maxrate += sol[i]*rates.get(i);
+        }
+        return maxrate;
+
+    }
+
+    int DP_1(){ //First Implementation of Dynamic programming
+        int[] L = new int[p];
+        for(int i = 1; i <= p; i++) {
+            int maxr = 0;
+            for(pair curr_pair:data[0]){
+                if (curr_pair.p <= i) maxr = Math.max(maxr,curr_pair.r);
+            }
+            L[i-1] = maxr;
+        }
+        for(int i =1; i < N; i++){
+            int[] tempL = new int[p];
+            for (int power = 0; power <p; power++) {
+                ArrayList<pair> curr_channel = data[i];
+                int max_r = 0;
+                for(pair pp:curr_channel) {
+                    if (pp.p < power && L[power-pp.p - 1] > 0) max_r = Math.max(max_r,L[power-pp.p - 1] + pp.r);
+                }
+                tempL[power] = max_r;
+            }
+            L = tempL;
+        }
+        return L[p-1];
+    }
+
+    int DP_2(int U){ //First Implementation of Dynamic programming given upper bound U of rates
+        int[] L = new int[U];
+        for(int i = 1; i <=U; i++) {
+            int minp = 0;
+            for(pair curr_pair:data[0]){
+                if (curr_pair.r == i){
+                    if(minp ==0) minp = curr_pair.p;
+                    else minp = Math.min(minp,curr_pair.p);
+                }
+            }
+            L[i-1] = minp;
+        }
+        for(int n =1; n < N; n++){
+            int[] tempL = new int[U];
+            for (int rate = 1; rate <=U; rate++) {
+                ArrayList<pair> curr_channel = data[n];
+                int min_p = 0;
+                for(pair pp:curr_channel) {
+                    if (pp.r < rate && L[rate-pp.r - 1] > 0){
+                        if (min_p == 0) min_p = L[rate-pp.r - 1] + pp.p;
+                        else min_p = Math.min(min_p,L[rate-pp.r - 1] + pp.p);
+                    }
+                }
+                tempL[rate-1] = min_p;
+            }
+            L = tempL;
+        }
+        for(int r = U; r >= 1; r--) {
+            if (L[r-1] <= p && L[r-1] > 0) return r;
+        }
+        return -1;
+    }
+
+
+
 }
 class power_comparator implements Comparator{
     public int compare(Object o1, Object o2) {
