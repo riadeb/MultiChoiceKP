@@ -64,7 +64,7 @@ public class Reader {
     }
 
     public static void main(String[] args) throws Exception {
-        Reader rr = new Reader("testfiles-2/test4.txt");
+        Reader rr = new Reader("testfiles-2/test3.txt");
         System.out.print("Maximum rate found by DP1 is : "); System.out.println(rr.DP_1());
         System.out.print("Maximum rate found by DP2 is : "); System.out.println(rr.DP_2(rr.upper_bnd_Rate));
 
@@ -73,10 +73,10 @@ public class Reader {
         rr.remove_LP_dominated();
         Solution sol = rr.greedy_LP();
         //rr.visualize_data(0,"dd");
-        System.out.print("Maximum rate is : "); System.out.println(sol.Rate);
+        System.out.print("Maximum rate found by greedy is : "); System.out.println(sol.Rate);
         for(ArrayList l:sol.data)  System.out.println(l);
         double max_r = rr.LP_solver();
-        System.out.print("Maximum rate fond by LP_solver is : ");System.out.println(max_r);
+        System.out.print("Maximum rate found by LP_solver is : ");System.out.println(max_r);
 
     }
 

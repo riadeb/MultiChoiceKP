@@ -25,7 +25,7 @@ public class pair {
     }
     @Override
     public String toString(){
-        return "("+String.valueOf(this.p) + ","+String.valueOf(this.r)+")";
+        return "(Power :"+String.valueOf(this.p) + ",Rate :"+String.valueOf(this.r)+ ",User :"+String.valueOf(this.user)+ ",M :"+String.valueOf(this.r)+ ",Channel : "+String.valueOf(this.n)+")";
     }
 }
 
