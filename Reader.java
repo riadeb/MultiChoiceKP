@@ -65,7 +65,9 @@ public class Reader {
 
     public static void main(String[] args) throws Exception {
         Reader rr = new Reader("testfiles-2/test3.txt");
+
         System.out.print("Maximum rate found by DP1 is : "); System.out.println(rr.DP_1());
+
         System.out.print("Maximum rate found by DP2 is : "); System.out.println(rr.DP_2(rr.upper_bnd_Rate));
 
         rr.remove_impossible_terms();
@@ -325,7 +327,6 @@ public class Reader {
         }
         return -1;
     }
-
 
 
 }
