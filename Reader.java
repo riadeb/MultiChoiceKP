@@ -16,6 +16,8 @@ public class Reader {
     int N;
     String filename;
     ArrayList<pair>[] data;
+    ArrayList<pair>[] LP_filtered_data;
+    int[] maxes_r;
     int upper_bnd_Rate;
 
     public Reader(String filename) throws Exception {
@@ -27,6 +29,9 @@ public class Reader {
         this.p = Double.valueOf(sc.nextLine()).intValue();
         this.filename = filename;
         data = new ArrayList[N];
+        maxes_r = new int[N];
+        LP_filtered_data = new ArrayList[N];
+
 
         int[][][] power_values = new int[N][K][M];
         int[][][] r_values = new int[N][K][M];
@@ -51,6 +56,7 @@ public class Reader {
                     maxr = Math.max(maxr,Double.valueOf(newline[m]).intValue());
                 }
             }
+            for(int j = 0; j <= i; j++) maxes_r[j] += maxr;
             this.upper_bnd_Rate += maxr;
         }
         for (int i = 0; i < N; i++) {
@@ -66,19 +72,23 @@ public class Reader {
     public static void main(String[] args) throws Exception {
         Reader rr = new Reader("testfiles-2/test3.txt");
 
-        System.out.print("Maximum rate found by DP1 is : "); System.out.println(rr.DP_1());
-
-        System.out.print("Maximum rate found by DP2 is : "); System.out.println(rr.DP_2(rr.upper_bnd_Rate));
-
         rr.remove_impossible_terms();
         rr.remove_IP_dominated();
         rr.remove_LP_dominated();
+
         Solution sol = rr.greedy_LP();
         //rr.visualize_data(0,"dd");
         System.out.print("Maximum rate found by greedy is : "); System.out.println(sol.Rate);
         for(ArrayList l:sol.data)  System.out.println(l);
         double max_r = rr.LP_solver();
         System.out.print("Maximum rate found by LP_solver is : ");System.out.println(max_r);
+
+
+        System.out.print("Maximum rate found by DP1 is : "); System.out.println(rr.DP_1());
+
+        System.out.print("Maximum rate found by DP2 is : "); System.out.println(rr.DP_2(rr.upper_bnd_Rate));
+        System.out.print("Maximum rate found by BB is : ");System.out.println(rr.Braunch_and_bound());
+
 
     }
 
@@ -127,6 +137,7 @@ public class Reader {
 
     void remove_LP_dominated() {
         for (int n = 0; n < N; n++) {
+            LP_filtered_data[n] = new ArrayList<pair>();
             ArrayList<pair> channel_n = data[n];
             Collections.sort(channel_n, new power_comparator());
             Stack<pair> upper_convex_hull = new Stack<pair>();
@@ -147,12 +158,18 @@ public class Reader {
                 upper_convex_hull.push(p1);
 
             }
-            data[n] = new ArrayList<pair>(upper_convex_hull);
+            LP_filtered_data[n] = new ArrayList<pair>(upper_convex_hull);
         }
+
     }
 
-    void visualize_data(int channel, String additionnal_title) {
-        data_visualiser chart = new data_visualiser("Instance scatter plot - file :" + filename + additionnal_title, data, channel);
+    void visualize_data(int channel, String additionnal_title, boolean lp_filtred) {
+        data_visualiser chart = null;
+        if (lp_filtred) {
+            chart = new data_visualiser("Instance scatter plot - file :" + filename + additionnal_title, LP_filtered_data, channel);
+
+        }
+        else {chart = new data_visualiser("Instance scatter plot - file :" + filename + additionnal_title, data, channel);}
         chart.setSize(800, 400);
         chart.setLocationRelativeTo(null);
         chart.setVisible(true);
@@ -161,7 +178,7 @@ public class Reader {
     ArrayList<pair> Sort_by_incremental_efficiency() { //returns an array of all pairs apart form the first pair of each channel, sorted by incremental efficiency
         ArrayList<pair> pairs_sorted_eff = new ArrayList<pair>();
         for (int n = 0; n < N; n++) {
-            ArrayList<pair> channel_n = data[n];
+            ArrayList<pair> channel_n = LP_filtered_data[n]; //OPERATES ON data after removing LP dominated terms
             Collections.sort(channel_n, new power_comparator());
             pair curr_pair = channel_n.get(0);
             curr_pair.inc_eff = Double.MAX_VALUE;
@@ -328,6 +345,54 @@ public class Reader {
         return -1;
     }
 
+    Bounds Greedy_bound(int curr_channel,int Power_Bud , ArrayList<pair> sorted_inc) {
+        double Rate = 0;
+        int i = 0;
+        pair curr_pair = null;
+        while (i < sorted_inc.size() && sorted_inc.get(i).p <= Power_Bud ) {
+            curr_pair = sorted_inc.get(i);
+            if (curr_pair.n >= curr_channel) {
+                Power_Bud -= curr_pair.inc_power;
+                Rate += curr_pair.inc_rate;
+                sol_pair sol = new sol_pair(curr_pair.p, curr_pair.r, curr_pair.user, curr_pair.m, curr_pair.n, 1);
+            }
+            i++;
+        }
+        int LB = (int) Rate;
+        if (Power_Bud > 0 && i < sorted_inc.size()) {
+            curr_pair = sorted_inc.get(i);
+            double x = Double.valueOf(Power_Bud)/curr_pair.inc_power;
+            Rate += x*curr_pair.inc_rate;
+            Power_Bud -= x*curr_pair.inc_power;
+
+        }
+        return new Bounds(Rate,LB);
+    }
+    int Braunch_and_bound(){
+        Bounds curbound = new Bounds(Double.MAX_VALUE,Integer.MIN_VALUE);
+        BB(0,0,0,curbound, Sort_by_incremental_efficiency());
+        return curbound.LB;
+    }
+    void BB(int curr_channel, int Power_used, int rate_achieved, Bounds curr_bounds, ArrayList<pair> sorted_inc) {
+        if (Power_used >= this.p) return;
+        Bounds braunch_bound = Greedy_bound(curr_channel,this.p - Power_used,sorted_inc);
+        /*
+        System.out.print(braunch_bound.UB + rate_achieved);
+        System.out.print(",");
+        System.out.print(braunch_bound.LB + rate_achieved);
+        System.out.print(",");
+        System.out.println(curr_channel); */
+
+        if (braunch_bound.UB + rate_achieved <= curr_bounds.LB) return;
+        curr_bounds.LB = Math.max(curr_bounds.LB,braunch_bound.LB + rate_achieved);
+        curr_bounds.UB = Math.min(curr_bounds.UB,braunch_bound.UB + rate_achieved);
+        for (pair pai:data[curr_channel]){
+            if (pai.p + Power_used > this.p) continue;
+            if (curr_channel < N-1) BB(curr_channel + 1, Power_used + pai.p, rate_achieved + pai.r,curr_bounds,sorted_inc);
+            else curr_bounds.LB = Math.max(curr_bounds.LB,rate_achieved + pai.r);
+        }
+    }
+
 
 }
 class power_comparator implements Comparator{
@@ -349,6 +414,14 @@ class inc_eff_comparator implements  Comparator {
         pair pair1 = (pair) o1;
         pair pair2 = (pair) o2;
         return Double.compare(pair1.inc_eff,pair2.inc_eff);
+    }
+}
+class Bounds {
+    double UB;
+    int LB;
+    public Bounds(double ub, int lb) {
+        UB = ub;
+        LB = lb;
     }
 }
 
