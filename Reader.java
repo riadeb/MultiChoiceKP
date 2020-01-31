@@ -70,18 +70,49 @@ public class Reader {
     }
 
     public static void main(String[] args) throws Exception {
-        Reader rr = new Reader("testfiles-2/test3.txt");
+        /*
+        String before_prep = "";
+        String prep1 = "";
+        String prep2 = "";
+        String prep3 = "";
+        for(int i =4; i < 6; i++) {
+            try {
+                long sum = 0;
+                for (int j = 0; j < 100; j++)
+                {
+                    Reader rr = new Reader("testfiles-2/test"+String.valueOf(i)+ ".txt");
+                rr.remove_impossible_terms();
+                rr.remove_IP_dominated();
+                rr.remove_LP_dominated();
+                    long start = System.nanoTime();
+                rr.greedy_LP();
+                long time = System.nanoTime() - start;
+                sum += time;
+                }
+                before_prep += String.valueOf((sum/100.0) * Math.pow(10,-6)) + " & ";
 
+            }
+            catch (Exception e){
+                before_prep += String.valueOf("N.A") + " & ";
+
+            }
+
+        }
+        System.out.println(before_prep);
+        */
+
+
+        Reader rr = new Reader("testfiles-2/test4.txt");
         rr.remove_impossible_terms();
         rr.remove_IP_dominated();
         rr.remove_LP_dominated();
 
+
         Solution sol = rr.greedy_LP();
-        //rr.visualize_data(0,"dd");
-        System.out.print("Maximum rate found by greedy is : "); System.out.println(sol.Rate);
-        for(ArrayList l:sol.data)  System.out.println(l);
+        //for(ArrayList l:sol.data)  System.out.println(l);
         double max_r = rr.LP_solver();
         System.out.print("Maximum rate found by LP_solver is : ");System.out.println(max_r);
+        System.out.print("Maximum rate found by greedy is : "); System.out.println(sol.Rate);
 
 
         System.out.print("Maximum rate found by DP1 is : "); System.out.println(rr.DP_1());
@@ -91,7 +122,15 @@ public class Reader {
 
 
     }
-
+    int total_num_instances(boolean after_lp_filter){
+        int c = 0;
+        ArrayList<pair>[] data_to_use = data;
+        if (after_lp_filter)  data_to_use = LP_filtered_data;
+        for (ArrayList dd: data_to_use){
+            c += dd.size();
+        }
+        return c;
+    }
     void remove_impossible_terms() throws Exception { //First step of pre-processing
         pair[] mins = new pair[N]; //Array to hold the pairs with minimum power for each channel
         int power_sum_min = 0;
@@ -207,7 +246,7 @@ public class Reader {
         for (int j = 0; j < N; j++) solutions[j] = new ArrayList<>();
         int i = 0;
         pair curr_pair = null;
-        while (i < sorted_inc.size() && sorted_inc.get(i).p <= Power_Bud ) {
+        while (i < sorted_inc.size() && sorted_inc.get(i).inc_power <= Power_Bud ) {
             curr_pair = sorted_inc.get(i);
             Power_Bud -= curr_pair.inc_power;
             Rate += curr_pair.inc_rate;
@@ -273,7 +312,6 @@ public class Reader {
         lp.setLowerbound(is_int);
 
         LinearProgramSolver solver  = SolverFactory.newDefault();
-
         double[] sol = solver.solve(lp);
 
 
@@ -349,7 +387,7 @@ public class Reader {
         double Rate = 0;
         int i = 0;
         pair curr_pair = null;
-        while (i < sorted_inc.size() && sorted_inc.get(i).p <= Power_Bud ) {
+        while (i < sorted_inc.size() && sorted_inc.get(i).inc_power <= Power_Bud ) {
             curr_pair = sorted_inc.get(i);
             if (curr_pair.n >= curr_channel) {
                 Power_Bud -= curr_pair.inc_power;
@@ -381,8 +419,8 @@ public class Reader {
         System.out.print(",");
         System.out.print(braunch_bound.LB + rate_achieved);
         System.out.print(",");
-        System.out.println(curr_channel); */
-
+        System.out.println(curr_channel);
+*/
         if (braunch_bound.UB + rate_achieved <= curr_bounds.LB) return;
         curr_bounds.LB = Math.max(curr_bounds.LB,braunch_bound.LB + rate_achieved);
         curr_bounds.UB = Math.min(curr_bounds.UB,braunch_bound.UB + rate_achieved);
