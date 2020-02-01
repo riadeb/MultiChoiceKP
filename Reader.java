@@ -102,7 +102,7 @@ public class Reader {
         */
 
 
-        Reader rr = new Reader("testfiles-2/test4.txt");
+        Reader rr = new Reader("testfiles-2/test1.txt");
         rr.remove_impossible_terms();
         rr.remove_IP_dominated();
         rr.remove_LP_dominated();
@@ -118,6 +118,8 @@ public class Reader {
         System.out.print("Maximum rate found by DP1 is : "); System.out.println(rr.DP_1());
 
         System.out.print("Maximum rate found by DP2 is : "); System.out.println(rr.DP_2(rr.upper_bnd_Rate));
+        //System.out.print("Maximum rate found by BB s is : ");System.out.println(rr.BB_with_queue());
+
         System.out.print("Maximum rate found by BB is : ");System.out.println(rr.Braunch_and_bound());
 
 
@@ -407,13 +409,14 @@ public class Reader {
         return new Bounds(Rate,LB);
     }
     int Braunch_and_bound(){
-        Bounds curbound = new Bounds(Double.MAX_VALUE,Integer.MIN_VALUE);
-        BB(0,0,0,curbound, Sort_by_incremental_efficiency());
+        ArrayList<pair> so = Sort_by_incremental_efficiency();
+        Bounds curbound = Greedy_bound(0,this.p ,so);
+        BB(0,0,0,curbound, so);
         return curbound.LB;
     }
     void BB(int curr_channel, int Power_used, int rate_achieved, Bounds curr_bounds, ArrayList<pair> sorted_inc) {
         if (Power_used >= this.p) return;
-        Bounds braunch_bound = Greedy_bound(curr_channel,this.p - Power_used,sorted_inc);
+        Bounds braunch_bound;
         /*
         System.out.print(braunch_bound.UB + rate_achieved);
         System.out.print(",");
@@ -421,17 +424,53 @@ public class Reader {
         System.out.print(",");
         System.out.println(curr_channel);
 */
-        if (braunch_bound.UB + rate_achieved <= curr_bounds.LB) return;
-        curr_bounds.LB = Math.max(curr_bounds.LB,braunch_bound.LB + rate_achieved);
-        curr_bounds.UB = Math.min(curr_bounds.UB,braunch_bound.UB + rate_achieved);
+
         for (pair pai:data[curr_channel]){
             if (pai.p + Power_used > this.p) continue;
-            if (curr_channel < N-1) BB(curr_channel + 1, Power_used + pai.p, rate_achieved + pai.r,curr_bounds,sorted_inc);
+            if (curr_channel < N-1) {
+                braunch_bound = Greedy_bound(curr_channel +1,this.p - Power_used - pai.p,sorted_inc);
+                if (braunch_bound.UB + rate_achieved + pai.r > curr_bounds.LB) {
+                    curr_bounds.LB = Math.max(curr_bounds.LB,braunch_bound.LB + rate_achieved + pai.r);
+                    BB(curr_channel + 1, Power_used + pai.p, rate_achieved + pai.r,curr_bounds,sorted_inc);
+                }
+            }
             else curr_bounds.LB = Math.max(curr_bounds.LB,rate_achieved + pai.r);
         }
     }
+    int BB_with_queue() {
+        ArrayList<pair> sorted_inc =  Sort_by_incremental_efficiency();
+        Queue<par> dd = new LinkedList<>();
+        dd.add(new par(0,0,0));
+        Bounds curr_bounds = Greedy_bound(0,0,sorted_inc);
+        while (dd.size() > 0) {
 
+            par c = dd.remove();
+            for (pair pai:data[c.curr_channel]){
+                if (pai.p + c.power_used > this.p) continue;
+                if (c.curr_channel < N-1) {
+                    Bounds braunch_bound = Greedy_bound(c.curr_channel +1,this.p - c.power_used - pai.p,sorted_inc);
+                    if (braunch_bound.UB + c.rate_achieved + pai.r > curr_bounds.LB) {
+                        dd.add(new par(c.curr_channel +1,c.power_used + pai.p,c.rate_achieved + pai.r));
+                    }
+                    curr_bounds.LB = Math.max(curr_bounds.LB,c.rate_achieved + pai.r + braunch_bound.LB);
+                }
+                else curr_bounds.LB = Math.max(curr_bounds.LB,c.rate_achieved + pai.r);
+            }
 
+        }
+        return curr_bounds.LB;
+    }
+
+}
+class par {
+    int curr_channel;
+    int power_used;
+    int rate_achieved;
+    public par(int c, int p, int r) {
+        curr_channel = c;
+        power_used = p;
+        rate_achieved = r;
+    }
 }
 class power_comparator implements Comparator{
     public int compare(Object o1, Object o2) {
