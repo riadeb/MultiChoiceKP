@@ -70,8 +70,25 @@ public class Reader {
     }
 
     public static void main(String[] args) throws Exception {
-        Reader rr = new Reader("testfiles-2/test1.txt");
-        rr.remove_impossible_terms();
+        Scanner in = new Scanner(System.in);
+        System.out.println("Pleaser enter the file path of your instance, or X to exit");
+        String s = in.nextLine();
+
+        while (!s.equals("X")){
+
+
+        String file = s;
+        Reader rr = new Reader(file);
+        try {
+            rr.remove_impossible_terms();
+        }
+       catch (Exception e){
+            System.out.println("Impossible instance");
+           System.out.println("Pleaser enter the file path of your instance, or X to exit");
+           s = in.nextLine();
+           continue;
+       }
+
         rr.remove_IP_dominated();
         rr.visualize_data(0," After IP_dom removed",false);
         rr.remove_LP_dominated();
@@ -84,6 +101,10 @@ public class Reader {
         System.out.print("Maximum rate found by DP1 is : "); System.out.println(rr.DP_1());
         System.out.print("Maximum rate found by DP2 is : "); System.out.println(rr.DP_2(rr.upper_bnd_Rate));
         System.out.print("Maximum rate found by BB is : ");System.out.println(rr.Braunch_and_bound());
+
+            System.out.println("Pleaser enter the file path of your instance, or X to exit");
+            s = in.nextLine();
+        }
 
 
     }
