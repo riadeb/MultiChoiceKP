@@ -16,7 +16,7 @@ public class Reader {
     int N;
     String filename;
     ArrayList<pair>[] data;
-    ArrayList<pair>[] LP_filtered_data;
+    ArrayList<pair>[] LP_filtered_data; //instances after removing LP-dominated terms
     int[] maxes_r;
     int upper_bnd_Rate;
 
@@ -70,56 +70,19 @@ public class Reader {
     }
 
     public static void main(String[] args) throws Exception {
-        /*
-        String before_prep = "";
-        String prep1 = "";
-        String prep2 = "";
-        String prep3 = "";
-        for(int i =4; i < 6; i++) {
-            try {
-                long sum = 0;
-                for (int j = 0; j < 100; j++)
-                {
-                    Reader rr = new Reader("testfiles-2/test"+String.valueOf(i)+ ".txt");
-                rr.remove_impossible_terms();
-                rr.remove_IP_dominated();
-                rr.remove_LP_dominated();
-                    long start = System.nanoTime();
-                rr.greedy_LP();
-                long time = System.nanoTime() - start;
-                sum += time;
-                }
-                before_prep += String.valueOf((sum/100.0) * Math.pow(10,-6)) + " & ";
-
-            }
-            catch (Exception e){
-                before_prep += String.valueOf("N.A") + " & ";
-
-            }
-
-        }
-        System.out.println(before_prep);
-        */
-
-
         Reader rr = new Reader("testfiles-2/test1.txt");
         rr.remove_impossible_terms();
         rr.remove_IP_dominated();
+        rr.visualize_data(0," After IP_dom removed",false);
         rr.remove_LP_dominated();
-
-
+        rr.visualize_data(0," After LP_dom removed",true);
         Solution sol = rr.greedy_LP();
         //for(ArrayList l:sol.data)  System.out.println(l);
         double max_r = rr.LP_solver();
         System.out.print("Maximum rate found by LP_solver is : ");System.out.println(max_r);
         System.out.print("Maximum rate found by greedy is : "); System.out.println(sol.Rate);
-
-
         System.out.print("Maximum rate found by DP1 is : "); System.out.println(rr.DP_1());
-
         System.out.print("Maximum rate found by DP2 is : "); System.out.println(rr.DP_2(rr.upper_bnd_Rate));
-        //System.out.print("Maximum rate found by BB s is : ");System.out.println(rr.BB_with_queue());
-
         System.out.print("Maximum rate found by BB is : ");System.out.println(rr.Braunch_and_bound());
 
 
@@ -460,7 +423,57 @@ public class Reader {
         }
         return curr_bounds.LB;
     }
+    static void debuger_and_stats() throws Exception {
 
+        String[] algos = new String[]{"dp1","dp2","bb"};
+        for(String alg:algos) {
+
+            System.out.println(alg);
+            String times = "";
+            String rates = "";
+            String power = "";
+
+
+            for (int i = 1; i < 6; i++) {
+
+                long sum = 0;
+                int DP1 = 0;
+                int power_used = 0;
+                Reader rr = new Reader("testfiles-2/test" + String.valueOf(i) + ".txt");
+                try {
+                    rr.remove_impossible_terms();
+                } catch (Exception e) {
+                    times += String.valueOf("N.A") + " & ";
+                    rates += String.valueOf("N.A") + " & ";
+                    continue;
+
+                }
+                rr.remove_IP_dominated();
+                rr.remove_LP_dominated();
+                for (int j = 0; j < 100; j++) {
+                    long start = System.nanoTime();
+                    switch (alg){
+                        case "dp1":
+                            DP1 = rr.DP_1();
+                        case "dp2":
+                            DP1 = rr.DP_2(rr.upper_bnd_Rate);
+                        case "bb":
+                            if (i != 4) DP1 = rr.Braunch_and_bound();
+
+                    }
+                    long time = System.nanoTime() - start;
+                    sum += time;
+                }
+                times += String.valueOf((sum / 100.0) * Math.pow(10, -6)) + " & ";
+                rates += String.valueOf(DP1) + " & ";
+
+            }
+            System.out.println(alg);
+            System.out.println(times);
+            System.out.println(rates);
+        }
+
+    } //used to make testes and calculate runtime
 }
 class par {
     int curr_channel;
@@ -471,7 +484,7 @@ class par {
         power_used = p;
         rate_achieved = r;
     }
-}
+} //class used to hold nodes parameters
 class power_comparator implements Comparator{
     public int compare(Object o1, Object o2) {
         pair pair1 = (pair) o1;
@@ -500,7 +513,7 @@ class Bounds {
         UB = ub;
         LB = lb;
     }
-}
+} //used to hold upper and lower bounds for problem
 
 
 
