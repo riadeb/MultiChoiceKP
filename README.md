@@ -1,2 +1,2 @@
-# Multi Choice Knapsack problem : Overview of methods to solve it
+# Multi Choice Knapsack problem : Comparaison of different methods
 Optimizing user ditribution over communication channels to maximize total data rate, given a certain power budget
