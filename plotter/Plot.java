@@ -1,4 +1,4 @@
-package Plotter;
+package plotter;
 
 import containers.Term;
 import org.jfree.chart.ChartFactory;
@@ -7,12 +7,13 @@ import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
+import java.util.LinkedList;
 
 import javax.swing.*;
 import java.util.ArrayList;
 
 public class Plot extends JFrame {
-    public Plot(String title, ArrayList<Term> [] data, int channel){
+    public Plot(String title, LinkedList<Term> [] data, int channel){
         super(title);
         XYSeriesCollection dataset = new XYSeriesCollection();
         XYSeries series = new XYSeries("channel");
