@@ -69,6 +69,7 @@ public class MCKP_Solver {
             throw new Exception("Impossible problem instance"); //if minimum power in each channel exceeds budget, then problem is impossible
         }
         for (int n = 0; n < N; n++) {
+            
             LinkedList<Term> channel_n = data[n];
             //HashSet<Term> channel_n_hash = new HashSet<Term>(channel_n);
             final int offset = power_sum_min - mins[n].p;
