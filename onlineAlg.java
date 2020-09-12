@@ -1,4 +1,5 @@
-import java.lang.reflect.Array;
+import containers.Term;
+
 import java.util.*;
 
 public class onlineAlg{
@@ -44,14 +45,14 @@ public class onlineAlg{
 
     }
     dt generate(){
-        ArrayList<pair>[] data = new ArrayList[this.K];
-        ArrayList<pair>[] Data = new ArrayList[this.N];
+        ArrayList<Term>[] data = new ArrayList[this.K];
+        ArrayList<Term>[] Data = new ArrayList[this.N];
 
         for (int k = 0; k < this.K; k++) {
-            data[k] = new ArrayList<pair>();
+            data[k] = new ArrayList<Term>();
         }
         for (int n = 0; n < N; n++) {
-            Data[n] = new ArrayList<pair>();
+            Data[n] = new ArrayList<Term>();
         }
         
         Random rd = new Random();
@@ -62,7 +63,7 @@ public class onlineAlg{
                     int pRandom = rd.nextInt(this.pmax) + 1;
                     int rRandom = rd.nextInt(this.rmax) + 1;
                     
-                    pair pr = new pair(pRandom, rRandom, k, m , n );
+                    Term pr = new Term(pRandom, rRandom, k, m , n );
                     data[k - 1].add(pr);
                     Data[n-1].add(pr);
                 }
@@ -72,7 +73,7 @@ public class onlineAlg{
         
         return Dt;
     }
-    int[] StochasticOnlineScheduling(ArrayList<pair>[] data) {
+    int[] StochasticOnlineScheduling(ArrayList<Term>[] data) {
         
         int powerBud = this.p;
         int achievedRate = 0;
@@ -93,7 +94,7 @@ public class onlineAlg{
             int up = 0;
             int i =0;
             while (up < PowerPerUser && i<data[0].size()) {
-                pair pai = data[k-1].get(i);
+                Term pai = data[k-1].get(i);
                 if (listOfChannels[pai.n-1] == 0 && up+pai.p <=PowerPerUser){
                     listOfChannels[pai.n-1] =1;
                     countChannels +=1;
@@ -116,7 +117,7 @@ public class onlineAlg{
         return ans;
     }
 
-    int[] DP(ArrayList<pair>[] Data){ //First Implementation of Dynamic programming
+    int[] DP(ArrayList<Term>[] Data){ //First Implementation of Dynamic programming
         /*
         L[p-1] holds maximum rate with power budget p
           */
@@ -124,7 +125,7 @@ public class onlineAlg{
         int[] L = new int[p];
         for(int i = 1; i <= p; i++) {
             int maxr = 0;
-            for(pair curr_pair:Data[0]){
+            for(Term curr_pair:Data[0]){
                 if (curr_pair.p <= i) maxr = Math.max(maxr,curr_pair.r);
             }
             L[i-1] = maxr;
@@ -133,9 +134,9 @@ public class onlineAlg{
         for(int i =1; i < N; i++){
             int[] tempL = new int[p];
             for (int power = 1; power <= p; power++) {
-                ArrayList<pair> curr_channel = Data[i];
+                ArrayList<Term> curr_channel = Data[i];
                 int max_r = 0;
-                for(pair pp:curr_channel) {
+                for(Term pp:curr_channel) {
                     if (pp.p < power && L[power-pp.p - 1] > 0) max_r = Math.max(max_r,L[power-pp.p - 1] + pp.r);
                 }
                 tempL[power-1] = max_r;
@@ -160,15 +161,15 @@ public class onlineAlg{
 }
 class eff_comparator implements  Comparator {
     public int compare(Object o1, Object o2) {
-        pair pair1 = (pair) o1;
-        pair pair2 = (pair) o2;
+        Term pair1 = (Term) o1;
+        Term pair2 = (Term) o2;
         return Double.compare(pair1.r/pair1.p,pair2.r/pair2.p);
     }
 }
 class dt {
-    ArrayList<pair>[] data;
-    ArrayList<pair>[] Data;
-    public dt(ArrayList<pair>[] data, ArrayList<pair>[] Data){
+    ArrayList<Term>[] data;
+    ArrayList<Term>[] Data;
+    public dt(ArrayList<Term>[] data, ArrayList<Term>[] Data){
         this.data = data;
         this.Data = Data;
     }

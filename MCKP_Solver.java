@@ -1,26 +1,41 @@
-import java.lang.reflect.Array;
 import java.util.*;
 import  java.io.File;
+
+import Plotter.Plot;
+import containers.Solution;
+import containers.Term;
 import scpsolver.lpsolver.LinearProgramSolver;
 import scpsolver.lpsolver.SolverFactory;
 import scpsolver.problems.LinearProgram;
 import  scpsolver.constraints.*;
 
-import javax.rmi.ssl.SslRMIClientSocketFactory;
 
-
-public class Reader {
+public class MCKP_Solver {
     int p;
     int M;
     int K;
     int N;
     String filename;
-    ArrayList<pair>[] data;
-    ArrayList<pair>[] LP_filtered_data; //instances after removing LP-dominated terms
+    ArrayList<Term>[] data;
+    ArrayList<Term>[] LP_filtered_data; //instances after removing LP-dominated terms
     int[] maxes_r;
     int upper_bnd_Rate;
 
-    public Reader(String filename) throws Exception {
+    public MCKP_Solver(String filename) throws Exception {
+        read_data(filename); //read data from file
+    }
+
+    int total_num_instances(boolean after_lp_filter){ //returns total number of instances
+        int c = 0;
+        ArrayList<Term>[] data_to_use = data;
+        if (after_lp_filter)  data_to_use = LP_filtered_data;
+        for (ArrayList dd: data_to_use){
+            c += dd.size();
+        }
+        return c;
+    }
+
+    void read_data(String filename) throws Exception {
         File file = new File(filename);
         Scanner sc = new Scanner(file);
         this.N = Double.valueOf(sc.nextLine()).intValue();
@@ -37,7 +52,7 @@ public class Reader {
         int[][][] r_values = new int[N][K][M];
 
         for (int i = 0; i < N; i++) {
-            data[i] = new ArrayList<pair>();
+            data[i] = new ArrayList<Term>();
             for (int k = 0; k < K; k++) {
                 String[] newline = sc.nextLine().stripLeading().split("   ");
                 for (int m = 0; m < M; m++) {
@@ -62,74 +77,26 @@ public class Reader {
         for (int i = 0; i < N; i++) {
             for (int k = 0; k < K; k++) {
                 for (int m = 0; m < M; m++) {
-                    data[i].add(new pair(power_values[i][k][m], r_values[i][k][m], k, m,i));
+                    data[i].add(new Term(power_values[i][k][m], r_values[i][k][m], k, m,i));
                 }
             }
         }
 
     }
 
-    public static void main(String[] args) throws Exception {
-        Scanner in = new Scanner(System.in);
-        System.out.println("Pleaser enter the file path of your instance, or X to exit");
-        String s = in.nextLine();
-
-        while (!s.equals("X")){
-
-
-        String file = s;
-        Reader rr = new Reader(file);
-        try {
-            rr.remove_impossible_terms();
-        }
-       catch (Exception e){
-            System.out.println("Impossible instance");
-           System.out.println("Pleaser enter the file path of your instance, or X to exit");
-           s = in.nextLine();
-           continue;
-       }
-
-        rr.remove_IP_dominated();
-        rr.visualize_data(0," After IP_dom removed",false);
-        rr.remove_LP_dominated();
-        rr.visualize_data(0," After LP_dom removed",true);
-        Solution sol = rr.greedy_LP();
-        //for(ArrayList l:sol.data)  System.out.println(l);
-        double max_r = rr.LP_solver();
-        System.out.print("Maximum rate found by LP_solver is : ");System.out.println(max_r);
-        System.out.print("Maximum rate found by greedy is : "); System.out.println(sol.Rate);
-        System.out.print("Maximum rate found by DP1 is : "); System.out.println(rr.DP_1());
-        System.out.print("Maximum rate found by DP2 is : "); System.out.println(rr.DP_2(rr.upper_bnd_Rate));
-        System.out.print("Maximum rate found by BB is : ");System.out.println(rr.Braunch_and_bound());
-
-            System.out.println("Pleaser enter the file path of your instance, or X to exit");
-            s = in.nextLine();
-        }
-
-
-    }
-    int total_num_instances(boolean after_lp_filter){
-        int c = 0;
-        ArrayList<pair>[] data_to_use = data;
-        if (after_lp_filter)  data_to_use = LP_filtered_data;
-        for (ArrayList dd: data_to_use){
-            c += dd.size();
-        }
-        return c;
-    }
     void remove_impossible_terms() throws Exception { //First step of pre-processing
-        pair[] mins = new pair[N]; //Array to hold the pairs with minimum power for each channel
+        Term[] mins = new Term[N]; //Array to hold the pairs with minimum power for each channel
         int power_sum_min = 0;
         for (int i = 0; i < N; i++) {
-            pair min = Collections.min(data[i], new power_comparator());
+            Term min = Collections.min(data[i], new power_comparator());
             mins[i] = min;
             power_sum_min += min.p;
         }
-        if (power_sum_min > this.p) throw new Exception("Impossible problem instance");
+        if (power_sum_min > this.p) throw new Exception("Impossible problem instance"); //if minimum power in each channel exceeds budget, then problem is impossible
         for (int n = 0; n < N; n++) {
-            ArrayList<pair> channel_n = data[n];
-            HashSet<pair> channel_n_hash = new HashSet<pair>(channel_n);
-            for (pair pai : channel_n) {
+            ArrayList<Term> channel_n = data[n];
+            HashSet<Term> channel_n_hash = new HashSet<Term>(channel_n);
+            for (Term pai : channel_n) {
                 if (power_sum_min + pai.p - mins[n].p > this.p) channel_n_hash.remove(p);
             }
             data[n] = new ArrayList(channel_n_hash);
@@ -139,12 +106,12 @@ public class Reader {
 
     void remove_IP_dominated() {
         for (int n = 0; n < N; n++) {
-            ArrayList<pair> channel_n = data[n];
-            HashSet<pair> channel_n_hash = new HashSet<pair>(channel_n); //to remove dominated terms in constant time
+            ArrayList<Term> channel_n = data[n];
+            HashSet<Term> channel_n_hash = new HashSet<Term>(channel_n); //to remove dominated terms in constant time
             Collections.sort(channel_n, new power_comparator());
             int max_r = channel_n.get(0).r;
             for (int i = 1; i < channel_n.size(); i++) {
-                pair curr_pair = channel_n.get(i);
+                Term curr_pair = channel_n.get(i);
                 if (curr_pair.r <= max_r) channel_n_hash.remove(curr_pair);
                 max_r = Math.max(max_r, curr_pair.r);
             }
@@ -153,7 +120,7 @@ public class Reader {
 
     }
 
-    boolean is_point_right(pair p1, pair p2, pair p3) { //true if p1 is on the right of the line p3 -> p2
+    boolean is_point_right(Term p1, Term p2, Term p3) { //true if p1 is on the right of the line p3 -> p2
 
         return (p2.r - p3.r) * (p1.p - p2.p) >= (p1.r - p2.r) * (p2.p - p3.p);
 
@@ -162,16 +129,16 @@ public class Reader {
 
     void remove_LP_dominated() {
         for (int n = 0; n < N; n++) {
-            LP_filtered_data[n] = new ArrayList<pair>();
-            ArrayList<pair> channel_n = data[n];
+            LP_filtered_data[n] = new ArrayList<Term>();
+            ArrayList<Term> channel_n = data[n];
             Collections.sort(channel_n, new power_comparator());
-            Stack<pair> upper_convex_hull = new Stack<pair>();
+            Stack<Term> upper_convex_hull = new Stack<Term>();
             upper_convex_hull.push(channel_n.get(0));
             for (int i = 1; i < channel_n.size(); i++) {
-                pair p1 = channel_n.get(i);
+                Term p1 = channel_n.get(i);
                 if (upper_convex_hull.size() > 1) {
-                    pair p2 = upper_convex_hull.pop();
-                    pair p3 = upper_convex_hull.peek();
+                    Term p2 = upper_convex_hull.pop();
+                    Term p3 = upper_convex_hull.peek();
                     while (!is_point_right(p1, p2, p3) && upper_convex_hull.size() > 1) {
                         p2 = upper_convex_hull.pop();
                         p3 = upper_convex_hull.peek();
@@ -183,36 +150,36 @@ public class Reader {
                 upper_convex_hull.push(p1);
 
             }
-            LP_filtered_data[n] = new ArrayList<pair>(upper_convex_hull);
+            LP_filtered_data[n] = new ArrayList<Term>(upper_convex_hull);
         }
 
     }
 
     void visualize_data(int channel, String additionnal_title, boolean lp_filtred) {
-        data_visualiser chart = null;
+        Plot chart = null;
         if (lp_filtred) {
-            chart = new data_visualiser("Instance scatter plot - file :" + filename + additionnal_title, LP_filtered_data, channel);
+            chart = new Plot("Instance scatter plot - file :" + filename + additionnal_title, LP_filtered_data, channel);
 
         }
-        else {chart = new data_visualiser("Instance scatter plot - file :" + filename + additionnal_title, data, channel);}
+        else {chart = new Plot("Instance scatter plot - file :" + filename + additionnal_title, data, channel);}
         chart.setSize(800, 400);
         chart.setLocationRelativeTo(null);
         chart.setVisible(true);
     }
 
-    ArrayList<pair> Sort_by_incremental_efficiency() { //returns an array of all pairs apart form the first pair of each channel, sorted by incremental efficiency
-        ArrayList<pair> pairs_sorted_eff = new ArrayList<pair>();
+    ArrayList<Term> Sort_by_incremental_efficiency() { //returns an array of all pairs apart form the first containers.Term of each channel, sorted by incremental efficiency
+        ArrayList<Term> pairs_sorted_eff = new ArrayList<Term>();
         for (int n = 0; n < N; n++) {
-            ArrayList<pair> channel_n = LP_filtered_data[n]; //OPERATES ON data after removing LP dominated terms
+            ArrayList<Term> channel_n = LP_filtered_data[n]; //OPERATES ON data after removing LP dominated terms
             Collections.sort(channel_n, new power_comparator());
-            pair curr_pair = channel_n.get(0);
+            Term curr_pair = channel_n.get(0);
             curr_pair.inc_eff = Double.MAX_VALUE;
             curr_pair.inc_power = curr_pair.p;
             curr_pair.inc_rate = curr_pair.r;
             pairs_sorted_eff.add(curr_pair);
             for (int i = 1; i < channel_n.size(); i++) {
                 curr_pair = channel_n.get(i);
-                pair prev_pair = channel_n.get(i - 1);
+                Term prev_pair = channel_n.get(i - 1);
                 curr_pair.inc_eff = Double.valueOf(curr_pair.r - prev_pair.r) / (curr_pair.p - prev_pair.p);
                 curr_pair.inc_rate = (curr_pair.r - prev_pair.r);
                 curr_pair.inc_power = (curr_pair.p - prev_pair.p);
@@ -224,19 +191,19 @@ public class Reader {
     }
 
     Solution greedy_LP() {
-        ArrayList<pair> sorted_inc = Sort_by_incremental_efficiency();
+        ArrayList<Term> sorted_inc = Sort_by_incremental_efficiency();
 
         int Power_Bud = this.p;
         double Rate = 0;
-        ArrayList<sol_pair>[] solutions = new ArrayList[N];
+        ArrayList<Term>[] solutions = new ArrayList[N];
         for (int j = 0; j < N; j++) solutions[j] = new ArrayList<>();
         int i = 0;
-        pair curr_pair = null;
+        Term curr_pair = null;
         while (i < sorted_inc.size() && sorted_inc.get(i).inc_power <= Power_Bud ) {
             curr_pair = sorted_inc.get(i);
             Power_Bud -= curr_pair.inc_power;
             Rate += curr_pair.inc_rate;
-            sol_pair sol = new sol_pair(curr_pair.p,curr_pair.r,curr_pair.user,curr_pair.m,curr_pair.n,1);
+            Term sol = new Term(curr_pair.p,curr_pair.r,curr_pair.user,curr_pair.m,curr_pair.n,1);
             solutions[curr_pair.n].clear();
             solutions[curr_pair.n].add(sol);
             i++;
@@ -246,9 +213,9 @@ public class Reader {
             curr_pair = sorted_inc.get(i);
             double x = Double.valueOf(Power_Bud)/curr_pair.inc_power;
 
-            sol_pair sol1 = new sol_pair(curr_pair.p,curr_pair.r,curr_pair.user,curr_pair.m,curr_pair.n,x);
-            pair prev_pair = solutions[sol1.n].get(0);
-            sol_pair sol2 = new sol_pair(prev_pair.p,prev_pair.r,prev_pair.user,prev_pair.m,prev_pair.n,1-x);
+            Term sol1 = new Term(curr_pair.p,curr_pair.r,curr_pair.user,curr_pair.m,curr_pair.n,x);
+            Term prev_pair = solutions[sol1.n].get(0);
+            Term sol2 = new Term(prev_pair.p,prev_pair.r,prev_pair.user,prev_pair.m,prev_pair.n,1-x);
             Rate += x*curr_pair.inc_rate;
             Power_Bud -= x*curr_pair.inc_power;
             solutions[sol1.n].clear();
@@ -266,7 +233,7 @@ public class Reader {
         ArrayList<Double> powers = new ArrayList<Double>();
         int[] channels_sizes = new int[N];
         for(int i = 0; i < N; i++) {
-            for (pair p:data[i]){
+            for (Term p:data[i]){
                 rates.add(Double.valueOf(p.r));
                 powers.add(Double.valueOf(p.p));
             }
@@ -316,7 +283,7 @@ public class Reader {
         int[] L = new int[p];
         for(int i = 1; i <= p; i++) {
             int maxr = 0;
-            for(pair curr_pair:data[0]){
+            for(Term curr_pair:data[0]){
                 if (curr_pair.p <= i) maxr = Math.max(maxr,curr_pair.r);
             }
             L[i-1] = maxr;
@@ -324,9 +291,9 @@ public class Reader {
         for(int i =1; i < N; i++){
             int[] tempL = new int[p];
             for (int power = 1; power <= p; power++) {
-                ArrayList<pair> curr_channel = data[i];
+                ArrayList<Term> curr_channel = data[i];
                 int max_r = 0;
-                for(pair pp:curr_channel) {
+                for(Term pp:curr_channel) {
                     if (pp.p < power && L[power-pp.p - 1] > 0) max_r = Math.max(max_r,L[power-pp.p - 1] + pp.r);
                 }
                 tempL[power-1] = max_r;
@@ -340,7 +307,7 @@ public class Reader {
         int[] L = new int[U];
         for(int i = 1; i <=U; i++) {
             int minp = 0;
-            for(pair curr_pair:data[0]){
+            for(Term curr_pair:data[0]){
                 if (curr_pair.r == i){
                     if(minp ==0) minp = curr_pair.p;
                     else minp = Math.min(minp,curr_pair.p);
@@ -351,9 +318,9 @@ public class Reader {
         for(int n =1; n < N; n++){
             int[] tempL = new int[U];
             for (int rate = 1; rate <=U; rate++) {
-                ArrayList<pair> curr_channel = data[n];
+                ArrayList<Term> curr_channel = data[n];
                 int min_p = 0;
-                for(pair pp:curr_channel) {
+                for(Term pp:curr_channel) {
                     if (pp.r < rate && L[rate-pp.r - 1] > 0){
                         if (min_p == 0) min_p = L[rate-pp.r - 1] + pp.p;
                         else min_p = Math.min(min_p,L[rate-pp.r - 1] + pp.p);
@@ -369,16 +336,16 @@ public class Reader {
         return -1;
     }
 
-    Bounds Greedy_bound(int curr_channel,int Power_Bud , ArrayList<pair> sorted_inc) {
+    Bounds Greedy_bound(int curr_channel,int Power_Bud , ArrayList<Term> sorted_inc) {
         double Rate = 0;
         int i = 0;
-        pair curr_pair = null;
+        Term curr_pair = null;
         while (i < sorted_inc.size() && sorted_inc.get(i).inc_power <= Power_Bud ) {
             curr_pair = sorted_inc.get(i);
             if (curr_pair.n >= curr_channel) {
                 Power_Bud -= curr_pair.inc_power;
                 Rate += curr_pair.inc_rate;
-                sol_pair sol = new sol_pair(curr_pair.p, curr_pair.r, curr_pair.user, curr_pair.m, curr_pair.n, 1);
+                Term sol = new Term(curr_pair.p, curr_pair.r, curr_pair.user, curr_pair.m, curr_pair.n, 1);
             }
             i++;
         }
@@ -393,12 +360,12 @@ public class Reader {
         return new Bounds(Rate,LB);
     }
     int Braunch_and_bound(){
-        ArrayList<pair> so = Sort_by_incremental_efficiency();
+        ArrayList<Term> so = Sort_by_incremental_efficiency();
         Bounds curbound = Greedy_bound(0,this.p ,so);
         BB(0,0,0,curbound, so);
         return curbound.LB;
     }
-    void BB(int curr_channel, int Power_used, int rate_achieved, Bounds curr_bounds, ArrayList<pair> sorted_inc) {
+    void BB(int curr_channel, int Power_used, int rate_achieved, Bounds curr_bounds, ArrayList<Term> sorted_inc) {
         if (Power_used >= this.p) return;
         Bounds braunch_bound;
         /*
@@ -409,7 +376,7 @@ public class Reader {
         System.out.println(curr_channel);
 */
 
-        for (pair pai:data[curr_channel]){
+        for (Term pai:data[curr_channel]){
             if (pai.p + Power_used > this.p) continue;
             if (curr_channel < N-1) {
                 braunch_bound = Greedy_bound(curr_channel +1,this.p - Power_used - pai.p,sorted_inc);
@@ -422,14 +389,14 @@ public class Reader {
         }
     }
     int BB_with_queue() {
-        ArrayList<pair> sorted_inc =  Sort_by_incremental_efficiency();
+        ArrayList<Term> sorted_inc =  Sort_by_incremental_efficiency();
         Queue<par> dd = new LinkedList<>();
         dd.add(new par(0,0,0));
         Bounds curr_bounds = Greedy_bound(0,0,sorted_inc);
         while (dd.size() > 0) {
 
             par c = dd.remove();
-            for (pair pai:data[c.curr_channel]){
+            for (Term pai:data[c.curr_channel]){
                 if (pai.p + c.power_used > this.p) continue;
                 if (c.curr_channel < N-1) {
                     Bounds braunch_bound = Greedy_bound(c.curr_channel +1,this.p - c.power_used - pai.p,sorted_inc);
@@ -460,7 +427,7 @@ public class Reader {
                 long sum = 0;
                 int DP1 = 0;
                 int power_used = 0;
-                Reader rr = new Reader("testfiles-2/test" + String.valueOf(i) + ".txt");
+                MCKP_Solver rr = new MCKP_Solver("testfiles/test" + String.valueOf(i) + ".txt");
                 try {
                     rr.remove_impossible_terms();
                 } catch (Exception e) {
@@ -496,6 +463,7 @@ public class Reader {
 
     } //used to make testes and calculate runtime
 }
+
 class par {
     int curr_channel;
     int power_used;
@@ -508,8 +476,8 @@ class par {
 } //class used to hold nodes parameters
 class power_comparator implements Comparator{
     public int compare(Object o1, Object o2) {
-        pair pair1 = (pair) o1;
-        pair pair2 = (pair) o2;
+        Term pair1 = (Term) o1;
+        Term pair2 = (Term) o2;
         if (pair1.p > pair2.p) return 1;
         else if(pair1.p < pair2.p) return -1;
         else {
@@ -522,8 +490,8 @@ class power_comparator implements Comparator{
 }
 class inc_eff_comparator implements  Comparator {
     public int compare(Object o1, Object o2) {
-        pair pair1 = (pair) o1;
-        pair pair2 = (pair) o2;
+        Term pair1 = (Term) o1;
+        Term pair2 = (Term) o2;
         return Double.compare(pair1.inc_eff,pair2.inc_eff);
     }
 }
