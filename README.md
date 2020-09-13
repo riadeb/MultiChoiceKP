@@ -7,6 +7,34 @@ This repository contains a multichoice knapsack problem solver, using various te
 
 For a full description of the problem : 
 
+## Main class
+This class uses the solver/MCKP_Solver class in order to solve the multi-channel communication problem. It offers a way to test the solver and to compare performance of the different approaches. We give 5 test files in the folder testfiles. These are the files we used to test and compare the solver.
+The class can be used in two ways :
+
+#### javac Main {filepath}
+Solves the problem in the file using all approaches and display the results
+
+Example : javac Main testfiles/test1.txt
+```
+Maximum rate found by LP_solver is : 365.0
+Maximum rate found by greedy is : 365.0
+Maximum rate found by DP1 is : 365
+Maximum rate found by DP2 is : 365
+Maximum rate found by BB is : 365
+```
+
+#### javac Main -r {filepath}
+Compares runtime of the different approaches solving the problem in file.
+
+Example : javac Main -r testfiles/test1.txt
+```
+Algorithm | Runtime (ms) | Result
+dp1 | 0.1165425 | 365
+dp2 | 0.19613430999999998 | 365
+bb | 0.04078498 | 365
+```
+
+
 ## MCKP Solver
 The main class is solver/MCKP_Solver. Each MCKP_Solver object contains problem data, and implements different methods to preprocess the data and solve the problem.
 
