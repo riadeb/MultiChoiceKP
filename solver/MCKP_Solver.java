@@ -1,7 +1,6 @@
 package solver;
 
 import java.util.*;
-import  java.io.File;
 
 import plotter.Plot;
 import containers.Solution;
@@ -13,39 +12,36 @@ import  scpsolver.constraints.*;
 
 
 public class MCKP_Solver {
-    int p;
-    int N;
-    String filename;
+    int c;
+    int m;
     LinkedList<Term>[] data;
-    //ArrayList<Term>[] data;
-    //ArrayList<Term>[] LP_filtered_data; //instances after removing LP-dominated terms
     LinkedList<Term>[] LP_filtered_data;
 
-    public MCKP_Solver(int _p, int _N, LinkedList<Term>[] _data) throws Exception {
+    public MCKP_Solver(int _c, int _m, LinkedList<Term>[] _data) throws Exception {
         data = _data;
-        this.p = _p;
-        this.N = _N;
-        LP_filtered_data = new LinkedList[N];
+        this.c = _c;
+        this.m = _m;
+        LP_filtered_data = new LinkedList[m];
 
 
     }
 
     int total_num_instances(boolean after_lp_filter) { //returns total number of instances
-        int c = 0;
+        int res = 0;
         LinkedList<Term>[] data_to_use = data;
         if (after_lp_filter) data_to_use = LP_filtered_data;
         for (LinkedList dd : data_to_use) {
-            c += dd.size();
+            res += dd.size();
         }
-        return c;
+        return res;
     }
 
-    public int upper_bnd_Rate() { // returns an upper bound for the maximum rate achievable, by taking the biggest one in every channel
+    public int upper_bnd_profit() { // returns an upper bound for the maximum profit achievable, by taking the biggest one in every _class
         int res = 0;
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < m; i++) {
             int maxr = 0;
             for (Term t : data[i]) {
-                maxr = Math.max(maxr, t.r);
+                maxr = Math.max(maxr, t.profit);
             }
 
             res += maxr;
@@ -55,41 +51,39 @@ public class MCKP_Solver {
 
 
     public void remove_impossible_terms() throws Exception { //First step of pre-processing
-        Term[] mins = new Term[N]; //Array to hold the pairs with minimum power for each channel
-        int power_sum_min = 0;
-        for (int i = 0; i < N; i++) {
-            Term min = Collections.min(data[i], new power_comparator());
+        Term[] mins = new Term[m]; //Array to hold the pairs with minimum weight for each _class
+        int weight_sum_min = 0;
+        for (int i = 0; i < m; i++) {
+            Term min = Collections.min(data[i], new weight_comparator());
             mins[i] = min;
-            power_sum_min += min.p;
+            weight_sum_min += min.weight;
         }
-        if (power_sum_min > this.p) {
-            System.out.println(power_sum_min);
-            System.out.println(power_sum_min);
+        if (weight_sum_min > this.c) {
 
-            throw new Exception("Impossible problem instance"); //if minimum power in each channel exceeds budget, then problem is impossible
+
+            throw new Exception("Impossible problem instance"); //if minimum weight in each _class exceeds budget, then problem is impossible
         }
-        for (int n = 0; n < N; n++) {
-            
-            LinkedList<Term> channel_n = data[n];
-            //HashSet<Term> channel_n_hash = new HashSet<Term>(channel_n);
-            final int offset = power_sum_min - mins[n].p;
-            channel_n.removeIf(t -> offset + t.p  > this.p);
+        for (int n = 0; n < m; n++) {
+
+            LinkedList<Term> _class_n = data[n];
+            final int offset = weight_sum_min - mins[n].weight;
+            _class_n.removeIf(t -> offset + t.weight > this.c);
         }
 
     }
 
     public void remove_IP_dominated() {
-        for (int n = 0; n < N; n++) {
-            LinkedList<Term> channel_n = data[n];
-            Collections.sort(channel_n, new power_comparator());
-            int max_r = channel_n.get(0).r;
-            Iterator<Term> it = channel_n.iterator();
+        for (int n = 0; n < m; n++) {
+            LinkedList<Term> _class_n = data[n];
+            Collections.sort(_class_n, new weight_comparator());
+            int max_r = _class_n.get(0).profit;
+            Iterator<Term> it = _class_n.iterator();
             if(!it.hasNext()) continue;
             else it.next();
             for (; it.hasNext(); ) {
                 Term curr = it.next();
-                if (curr.r <= max_r) it.remove();
-                max_r = Math.max(max_r, curr.r);
+                if (curr.profit <= max_r) it.remove();
+                max_r = Math.max(max_r, curr.profit);
             }
         }
 
@@ -97,20 +91,20 @@ public class MCKP_Solver {
 
     boolean is_point_right(Term p1, Term p2, Term p3) { //true if p1 is on the right of the line p3 -> p2
 
-        return (p2.r - p3.r) * (p1.p - p2.p) >= (p1.r - p2.r) * (p2.p - p3.p);
+        return (p2.profit - p3.profit) * (p1.weight - p2.weight) >= (p1.profit - p2.profit) * (p2.weight - p3.weight);
 
 
     }
 
     public void remove_LP_dominated() {
-        for (int n = 0; n < N; n++) {
+        for (int n = 0; n < m; n++) {
             //  LP_filtered_data[n] = new ArrayList<Term>();
-            LinkedList<Term> channel_n = data[n];
-            Collections.sort(channel_n, new power_comparator());
+            LinkedList<Term> _class_n = data[n];
+            Collections.sort(_class_n, new weight_comparator());
             Stack<Term> upper_convex_hull = new Stack<Term>();
-            upper_convex_hull.push(channel_n.get(0));
-            for (int i = 1; i < channel_n.size(); i++) {
-                Term p1 = channel_n.get(i);
+            upper_convex_hull.push(_class_n.get(0));
+            for (int i = 1; i < _class_n.size(); i++) {
+                Term p1 = _class_n.get(i);
                 if (upper_convex_hull.size() > 1) {
                     Term p2 = upper_convex_hull.pop();
                     Term p3 = upper_convex_hull.peek();
@@ -130,35 +124,35 @@ public class MCKP_Solver {
 
     }
 
-    public void visualize_data(int channel, String additionnal_title, boolean lp_filtred) {
+    public void visualize_data(int _class, String additionnal_title, boolean lp_filtred) {
         Plot chart = null;
         if (lp_filtred) {
-            chart = new Plot("Instance scatter plot - file :" + filename + additionnal_title, LP_filtered_data, channel);
+            chart = new Plot("Instance scatter plot - " + additionnal_title, LP_filtered_data, _class);
 
         } else {
-            chart = new Plot("Instance scatter plot - file :" + filename + additionnal_title, data, channel);
+            chart = new Plot("Instance scatter plot - "  + additionnal_title, data, _class);
         }
         chart.setSize(800, 400);
         chart.setLocationRelativeTo(null);
         chart.setVisible(true);
     }
 
-    LinkedList<Term> Sort_by_incremental_efficiency() { //returns an array of all pairs apart form the first pair of each channel, sorted by incremental efficiency
+    LinkedList<Term> Sort_by_incremental_efficiency() { //returns an array of all pairs apart form the first pair of each _class, sorted by incremental efficiency
         LinkedList<Term> pairs_sorted_eff = new LinkedList<Term>();
-        for (int n = 0; n < N; n++) {
-            LinkedList<Term> channel_n = LP_filtered_data[n]; //OPERATES ON data after removing LP dominated terms
-            Collections.sort(channel_n, new power_comparator());
-            Term curr_pair = channel_n.get(0);
+        for (int n = 0; n < m; n++) {
+            LinkedList<Term> _class_n = LP_filtered_data[n]; //OPEprofitS ON data after removing LP dominated terms
+            Collections.sort(_class_n, new weight_comparator());
+            Term curr_pair = _class_n.get(0);
             curr_pair.inc_eff = Double.MAX_VALUE;
-            curr_pair.inc_power = curr_pair.p;
-            curr_pair.inc_rate = curr_pair.r;
+            curr_pair.inc_weight = curr_pair.weight;
+            curr_pair.inc_profit = curr_pair.profit;
             pairs_sorted_eff.add(curr_pair);
-            for (int i = 1; i < channel_n.size(); i++) {
-                curr_pair = channel_n.get(i);
-                Term prev_pair = channel_n.get(i - 1);
-                curr_pair.inc_eff = Double.valueOf(curr_pair.r - prev_pair.r) / (curr_pair.p - prev_pair.p);
-                curr_pair.inc_rate = (curr_pair.r - prev_pair.r);
-                curr_pair.inc_power = (curr_pair.p - prev_pair.p);
+            for (int i = 1; i < _class_n.size(); i++) {
+                curr_pair = _class_n.get(i);
+                Term prev_pair = _class_n.get(i - 1);
+                curr_pair.inc_eff = Double.valueOf(curr_pair.profit - prev_pair.profit) / (curr_pair.weight - prev_pair.weight);
+                curr_pair.inc_profit = (curr_pair.profit - prev_pair.profit);
+                curr_pair.inc_weight = (curr_pair.weight - prev_pair.weight);
                 pairs_sorted_eff.add(curr_pair);
             }
         }
@@ -169,73 +163,73 @@ public class MCKP_Solver {
     public Solution greedy_LP() {
         LinkedList<Term> sorted_inc = Sort_by_incremental_efficiency();
 
-        int Power_Bud = this.p;
-        double Rate = 0;
-        ArrayList<Term>[] solutions = new ArrayList[N];
-        for (int j = 0; j < N; j++) solutions[j] = new ArrayList<>();
+        int weight_Bud = this.c;
+        double profit = 0;
+        ArrayList<Term>[] solutions = new ArrayList[m];
+        for (int j = 0; j < m; j++) solutions[j] = new ArrayList<>();
         int i = 0;
         Term curr_pair = null;
-        while (i < sorted_inc.size() && sorted_inc.get(i).inc_power <= Power_Bud) {
+        while (i < sorted_inc.size() && sorted_inc.get(i).inc_weight <= weight_Bud) {
             curr_pair = sorted_inc.get(i);
-            Power_Bud -= curr_pair.inc_power;
-            Rate += curr_pair.inc_rate;
-            Term sol = new Term(curr_pair.p, curr_pair.r, curr_pair.n, 1);
+            weight_Bud -= curr_pair.inc_weight;
+            profit += curr_pair.inc_profit;
+            Term sol = new Term(curr_pair.weight, curr_pair.profit, curr_pair.n, 1);
             solutions[curr_pair.n].clear();
             solutions[curr_pair.n].add(sol);
             i++;
         }
 
-        if (Power_Bud > 0 && i < sorted_inc.size()) {
+        if (weight_Bud > 0 && i < sorted_inc.size()) {
             curr_pair = sorted_inc.get(i);
-            double x = Double.valueOf(Power_Bud) / curr_pair.inc_power;
+            double x = Double.valueOf(weight_Bud) / curr_pair.inc_weight;
 
-            Term sol1 = new Term(curr_pair.p, curr_pair.r, curr_pair.n, x);
+            Term sol1 = new Term(curr_pair.weight, curr_pair.profit, curr_pair.n, x);
             Term prev_pair = solutions[sol1.n].get(0);
-            Term sol2 = new Term(prev_pair.p, prev_pair.r, prev_pair.n, 1 - x);
-            Rate += x * curr_pair.inc_rate;
-            Power_Bud -= x * curr_pair.inc_power;
+            Term sol2 = new Term(prev_pair.weight, prev_pair.profit, prev_pair.n, 1 - x);
+            profit += x * curr_pair.inc_profit;
+            weight_Bud -= x * curr_pair.inc_weight;
             solutions[sol1.n].clear();
             solutions[sol1.n].add(sol2);
             solutions[sol1.n].add(sol1);
 
         }
-        return new Solution(Rate, solutions);
+        return new Solution(profit, solutions);
 
 
     }
 
     public double LP_solver() {
-        ArrayList<Double> rates = new ArrayList<Double>();
-        ArrayList<Double> powers = new ArrayList<Double>();
-        int[] channels_sizes = new int[N];
-        for (int i = 0; i < N; i++) {
+        ArrayList<Double> profits = new ArrayList<Double>();
+        ArrayList<Double> weights = new ArrayList<Double>();
+        int[] _classs_sizes = new int[m];
+        for (int i = 0; i < m; i++) {
             for (Term p : data[i]) {
-                rates.add(Double.valueOf(p.r));
-                powers.add(Double.valueOf(p.p));
+                profits.add(Double.valueOf(p.profit));
+                weights.add(Double.valueOf(p.weight));
             }
-            if (i == 0) channels_sizes[i] = 0;
-            else channels_sizes[i] = channels_sizes[i - 1] + data[i - 1].size();
+            if (i == 0) _classs_sizes[i] = 0;
+            else _classs_sizes[i] = _classs_sizes[i - 1] + data[i - 1].size();
         }
-        LinearProgram lp = new LinearProgram(rates.stream().mapToDouble(Double::doubleValue).toArray());
-        lp.addConstraint(new LinearSmallerThanEqualsConstraint(powers.stream().mapToDouble(Double::doubleValue).toArray(), this.p, "power budget constraint"));
-        for (int i = 0; i < N; i++) {
+        LinearProgram lp = new LinearProgram(profits.stream().mapToDouble(Double::doubleValue).toArray());
+        lp.addConstraint(new LinearSmallerThanEqualsConstraint(weights.stream().mapToDouble(Double::doubleValue).toArray(), this.c, "weight budget constraint"));
+        for (int i = 0; i < m; i++) {
             ArrayList<Double> sparse_vec_ch_i = new ArrayList<Double>(); //to hold the list used to build the ith constraint
-            Double[] zeros_arr_before = new Double[channels_sizes[i]];
+            Double[] zeros_arr_before = new Double[_classs_sizes[i]];
             Arrays.fill(zeros_arr_before, 0.0);
             Collections.addAll(sparse_vec_ch_i, zeros_arr_before);
             Double[] ones_arr = new Double[data[i].size()];
             Arrays.fill(ones_arr, 1.0);
             Collections.addAll(sparse_vec_ch_i, ones_arr);
-            if (i < N - 1) {
-                Double[] zeros_arr_after = new Double[channels_sizes[N - 1] + data[N - 1].size() - channels_sizes[i + 1]];
+            if (i < m - 1) {
+                Double[] zeros_arr_after = new Double[_classs_sizes[m - 1] + data[m - 1].size() - _classs_sizes[i + 1]];
                 Arrays.fill(zeros_arr_after, 0.0);
                 Collections.addAll(sparse_vec_ch_i, zeros_arr_after);
             }
-            lp.addConstraint(new LinearEqualsConstraint(sparse_vec_ch_i.stream().mapToDouble(Double::doubleValue).toArray(), 1.0, "One user per channel constraint" + String.valueOf(i)));
+            lp.addConstraint(new LinearEqualsConstraint(sparse_vec_ch_i.stream().mapToDouble(Double::doubleValue).toArray(), 1.0, "One user per _class constraint" + String.valueOf(i)));
 
         }
-        double[] is_int = new double[rates.size()];
-        for (int i = 0; i < rates.size(); i++) {
+        double[] is_int = new double[profits.size()];
+        for (int i = 0; i < profits.size(); i++) {
             is_int[i] = 0;
         }
         lp.setLowerbound(is_int);
@@ -244,125 +238,125 @@ public class MCKP_Solver {
         double[] sol = solver.solve(lp);
 
 
-        double maxrate = 0;
-        for (int i = 0; i < rates.size(); i++) {
-            maxrate += sol[i] * rates.get(i);
+        double maxprofit = 0;
+        for (int i = 0; i < profits.size(); i++) {
+            maxprofit += sol[i] * profits.get(i);
         }
-        return maxrate;
+        return maxprofit;
 
     }
 
     public int DP_1() { //First Implementation of Dynamic programming
         /*
-        L[p-1] holds maximum rate with power budget p
+        L[p-1] holds maximum profit with weight budget p
           */
-        int[] L = new int[p];
-        for (int i = 1; i <= p; i++) {
+        int[] L = new int[c];
+        for (int i = 1; i <= c; i++) {
             int maxr = 0;
             for (Term curr_pair : data[0]) {
-                if (curr_pair.p <= i) maxr = Math.max(maxr, curr_pair.r);
+                if (curr_pair.weight <= i) maxr = Math.max(maxr, curr_pair.profit);
             }
             L[i - 1] = maxr;
         }
-        for (int i = 1; i < N; i++) {
-            int[] tempL = new int[p];
-            for (int power = 1; power <= p; power++) {
-                LinkedList<Term> curr_channel = data[i];
+        for (int i = 1; i < m; i++) {
+            int[] tempL = new int[c];
+            for (int weight = 1; weight <= c; weight++) {
+                LinkedList<Term> curr__class = data[i];
                 int max_r = 0;
-                for (Term pp : curr_channel) {
-                    if (pp.p < power && L[power - pp.p - 1] > 0) max_r = Math.max(max_r, L[power - pp.p - 1] + pp.r);
+                for (Term pp : curr__class) {
+                    if (pp.weight < weight && L[weight - pp.weight - 1] > 0) max_r = Math.max(max_r, L[weight - pp.weight - 1] + pp.profit);
                 }
-                tempL[power - 1] = max_r;
+                tempL[weight - 1] = max_r;
             }
             L = tempL;
         }
-        return L[p - 1];
+        return L[c - 1];
     }
 
-    public int DP_2(int U) { //First Implementation of Dynamic programming given upper bound U of rates
+    public int DP_2(int U) { //First Implementation of Dynamic programming given upper bound U of profits
         int[] L = new int[U];
         for (int i = 1; i <= U; i++) {
             int minp = 0;
             for (Term curr_pair : data[0]) {
-                if (curr_pair.r == i) {
-                    if (minp == 0) minp = curr_pair.p;
-                    else minp = Math.min(minp, curr_pair.p);
+                if (curr_pair.profit == i) {
+                    if (minp == 0) minp = curr_pair.weight;
+                    else minp = Math.min(minp, curr_pair.weight);
                 }
             }
             L[i - 1] = minp;
         }
-        for (int n = 1; n < N; n++) {
+        for (int n = 1; n < m; n++) {
             int[] tempL = new int[U];
-            for (int rate = 1; rate <= U; rate++) {
-                LinkedList<Term> curr_channel = data[n];
+            for (int profit = 1; profit <= U; profit++) {
+                LinkedList<Term> curr__class = data[n];
                 int min_p = 0;
-                for (Term pp : curr_channel) {
-                    if (pp.r < rate && L[rate - pp.r - 1] > 0) {
-                        if (min_p == 0) min_p = L[rate - pp.r - 1] + pp.p;
-                        else min_p = Math.min(min_p, L[rate - pp.r - 1] + pp.p);
+                for (Term pp : curr__class) {
+                    if (pp.profit < profit && L[profit - pp.profit - 1] > 0) {
+                        if (min_p == 0) min_p = L[profit - pp.profit - 1] + pp.weight;
+                        else min_p = Math.min(min_p, L[profit - pp.profit - 1] + pp.weight);
                     }
                 }
-                tempL[rate - 1] = min_p;
+                tempL[profit - 1] = min_p;
             }
             L = tempL;
         }
         for (int r = U; r >= 1; r--) {
-            if (L[r - 1] <= p && L[r - 1] > 0) return r;
+            if (L[r - 1] <= c && L[r - 1] > 0) return r;
         }
         return -1;
     }
 
-    Bounds Greedy_bound(int curr_channel, int Power_Bud, LinkedList<Term> sorted_inc) {
-        double Rate = 0;
+    Bounds Greedy_bound(int curr__class, int weight_Bud, LinkedList<Term> sorted_inc) {
+        double profit = 0;
         int i = 0;
         Term curr_pair = null;
-        while (i < sorted_inc.size() && sorted_inc.get(i).inc_power <= Power_Bud) {
+        while (i < sorted_inc.size() && sorted_inc.get(i).inc_weight <= weight_Bud) {
             curr_pair = sorted_inc.get(i);
-            if (curr_pair.n >= curr_channel) {
-                Power_Bud -= curr_pair.inc_power;
-                Rate += curr_pair.inc_rate;
-                Term sol = new Term(curr_pair.p, curr_pair.r, curr_pair.n, 1);
+            if (curr_pair.n >= curr__class) {
+                weight_Bud -= curr_pair.inc_weight;
+                profit += curr_pair.inc_profit;
+                Term sol = new Term(curr_pair.weight, curr_pair.profit, curr_pair.n, 1);
             }
             i++;
         }
-        int LB = (int) Rate;
-        if (Power_Bud > 0 && i < sorted_inc.size()) {
+        int LB = (int) profit;
+        if (weight_Bud > 0 && i < sorted_inc.size()) {
             curr_pair = sorted_inc.get(i);
-            double x = Double.valueOf(Power_Bud) / curr_pair.inc_power;
-            Rate += x * curr_pair.inc_rate;
-            Power_Bud -= x * curr_pair.inc_power;
+            double x = Double.valueOf(weight_Bud) / curr_pair.inc_weight;
+            profit += x * curr_pair.inc_profit;
+            weight_Bud -= x * curr_pair.inc_weight;
 
         }
-        return new Bounds(Rate, LB);
+        return new Bounds(profit, LB);
     }
 
     public int Braunch_and_bound() {
         LinkedList<Term> so = Sort_by_incremental_efficiency();
-        Bounds curbound = Greedy_bound(0, this.p, so);
+        Bounds curbound = Greedy_bound(0, this.c, so);
         BB(0, 0, 0, curbound, so);
         return curbound.LB;
     }
 
-    public void BB(int curr_channel, int Power_used, int rate_achieved, Bounds curr_bounds, LinkedList<Term> sorted_inc) {
-        if (Power_used >= this.p) return;
+    public void BB(int curr__class, int weight_used, int profit_achieved, Bounds curr_bounds, LinkedList<Term> sorted_inc) {
+        if (weight_used >= this.c) return;
         Bounds braunch_bound;
         /*
-        System.out.print(braunch_bound.UB + rate_achieved);
+        System.out.print(braunch_bound.UB + profit_achieved);
         System.out.print(",");
-        System.out.print(braunch_bound.LB + rate_achieved);
+        System.out.print(braunch_bound.LB + profit_achieved);
         System.out.print(",");
-        System.out.println(curr_channel);
+        System.out.println(curr__class);
 */
 
-        for (Term pai : data[curr_channel]) {
-            if (pai.p + Power_used > this.p) continue;
-            if (curr_channel < N - 1) {
-                braunch_bound = Greedy_bound(curr_channel + 1, this.p - Power_used - pai.p, sorted_inc);
-                if (braunch_bound.UB + rate_achieved + pai.r > curr_bounds.LB) {
-                    curr_bounds.LB = Math.max(curr_bounds.LB, braunch_bound.LB + rate_achieved + pai.r);
-                    BB(curr_channel + 1, Power_used + pai.p, rate_achieved + pai.r, curr_bounds, sorted_inc);
+        for (Term pai : data[curr__class]) {
+            if (pai.weight + weight_used > this.c) continue;
+            if (curr__class < m - 1) {
+                braunch_bound = Greedy_bound(curr__class + 1, this.c - weight_used - pai.weight, sorted_inc);
+                if (braunch_bound.UB + profit_achieved + pai.profit > curr_bounds.LB) {
+                    curr_bounds.LB = Math.max(curr_bounds.LB, braunch_bound.LB + profit_achieved + pai.profit);
+                    BB(curr__class + 1, weight_used + pai.weight, profit_achieved + pai.profit, curr_bounds, sorted_inc);
                 }
-            } else curr_bounds.LB = Math.max(curr_bounds.LB, rate_achieved + pai.r);
+            } else curr_bounds.LB = Math.max(curr_bounds.LB, profit_achieved + pai.profit);
         }
     }
 
@@ -374,15 +368,15 @@ public class MCKP_Solver {
         while (dd.size() > 0) {
 
             par c = dd.remove();
-            for (Term pai : data[c.curr_channel]) {
-                if (pai.p + c.power_used > this.p) continue;
-                if (c.curr_channel < N - 1) {
-                    Bounds braunch_bound = Greedy_bound(c.curr_channel + 1, this.p - c.power_used - pai.p, sorted_inc);
-                    if (braunch_bound.UB + c.rate_achieved + pai.r > curr_bounds.LB) {
-                        dd.add(new par(c.curr_channel + 1, c.power_used + pai.p, c.rate_achieved + pai.r));
+            for (Term pai : data[c.curr__class]) {
+                if (pai.weight + c.weight_used > this.c) continue;
+                if (c.curr__class < m - 1) {
+                    Bounds braunch_bound = Greedy_bound(c.curr__class + 1, this.c - c.weight_used - pai.weight, sorted_inc);
+                    if (braunch_bound.UB + c.profit_achieved + pai.profit > curr_bounds.LB) {
+                        dd.add(new par(c.curr__class + 1, c.weight_used + pai.weight, c.profit_achieved + pai.profit));
                     }
-                    curr_bounds.LB = Math.max(curr_bounds.LB, c.rate_achieved + pai.r + braunch_bound.LB);
-                } else curr_bounds.LB = Math.max(curr_bounds.LB, c.rate_achieved + pai.r);
+                    curr_bounds.LB = Math.max(curr_bounds.LB, c.profit_achieved + pai.profit + braunch_bound.LB);
+                } else curr_bounds.LB = Math.max(curr_bounds.LB, c.profit_achieved + pai.profit);
             }
 
         }
@@ -391,24 +385,24 @@ public class MCKP_Solver {
 }
 
 class par {
-    int curr_channel;
-    int power_used;
-    int rate_achieved;
+    int curr__class;
+    int weight_used;
+    int profit_achieved;
     public par(int c, int p, int r) {
-        curr_channel = c;
-        power_used = p;
-        rate_achieved = r;
+        curr__class = c;
+        weight_used = p;
+        profit_achieved = r;
     }
 } //class used to hold nodes parameters
-class power_comparator implements Comparator{
+class weight_comparator implements Comparator{
     public int compare(Object o1, Object o2) {
         Term pair1 = (Term) o1;
         Term pair2 = (Term) o2;
-        if (pair1.p > pair2.p) return 1;
-        else if(pair1.p < pair2.p) return -1;
+        if (pair1.weight > pair2.weight) return 1;
+        else if(pair1.weight < pair2.weight) return -1;
         else {
-            if (pair1.r > pair2.r) return -1;
-            else if (pair1.r < pair2.r) return 1;
+            if (pair1.profit > pair2.profit) return -1;
+            else if (pair1.profit < pair2.profit) return 1;
             else return 0;
         }
 

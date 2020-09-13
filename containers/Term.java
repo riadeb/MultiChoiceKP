@@ -1,26 +1,24 @@
 package containers;
 
-import java.util.ArrayList;
-
 public class Term {
-    public int p;
-    public int r;
-    public int n; //channel index
-    public double inc_eff; //equals inc_rate/inc_eff
-    public int inc_power;
-    public int inc_rate;
-    public double weight;
-    public  Term(int p, int r, int i) {
-        this.p = p;
-        this.r= r;
+    public int weight;
+    public int profit;
+    public int n; //class index
+    public double inc_eff;
+    public int inc_weight;
+    public int inc_profit;
+    public double fract;
+    public  Term(int weight, int profit, int i) {
+        this.weight = weight;
+        this.profit = profit;
         this.n = i;
-        this.weight = 1;
+        this.fract = 1;
     }
-    public  Term(int p, int r, int i, double w) {
-        this.p = p;
-        this.r= r;
+    public  Term(int weight, int profit, int i, double f) {
+        this.weight = weight;
+        this.profit = profit;
         this.n = i;
-        this.weight = w;
+        this.fract = f;
     }
 
 

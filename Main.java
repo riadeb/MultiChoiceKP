@@ -3,7 +3,6 @@ import containers.Term;
 import solver.MCKP_Solver;
 
 import java.io.File;
-import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Scanner;
 
@@ -33,11 +32,11 @@ public class Main {
             System.out.print("Maximum rate found by LP_solver is : ");
             System.out.println(max_r);
             System.out.print("Maximum rate found by greedy is : ");
-            System.out.println(sol.Rate);
+            System.out.println(sol.profit);
             System.out.print("Maximum rate found by DP1 is : ");
             System.out.println(rr.DP_1());
             System.out.print("Maximum rate found by DP2 is : ");
-            System.out.println(rr.DP_2(rr.upper_bnd_Rate()));
+            System.out.println(rr.DP_2(rr.upper_bnd_profit()));
             System.out.print("Maximum rate found by BB is : ");
             System.out.println(rr.Braunch_and_bound());
 
@@ -117,7 +116,7 @@ public class Main {
                         DP1 = rr.DP_1();
                         break;
                     case "dp2":
-                        DP1 = rr.DP_2(rr.upper_bnd_Rate());
+                        DP1 = rr.DP_2(rr.upper_bnd_profit());
                         break;
                     case "bb":
                          DP1 = rr.Braunch_and_bound();
