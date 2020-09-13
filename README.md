@@ -11,7 +11,7 @@ The main class is solver/MCKP_Solver. Each MCKP_Solver object contains problem d
 ### Preprocessing methods :
 
 #### remove_impossible_terms() : 
-Removes impossible terms (terms that can be part of any solution, otherwise the capacity constraint is violated). This method throws an exception if the problem is impossible to solve, ie, if even by taking the smallest weights in every channel, the capacity constraint can't be respected.
+Removes impossible terms (terms that can be part of any solution, otherwise the capacity constraint is violated). This method throws an exception if the problem is impossible to solve, ie, if even by taking the smallest weights in every class, the capacity constraint can't be respected.
 
 #### remove_IP_dominated():
 Removes IP dominated terms (in place). See document below for full explanation
@@ -42,8 +42,8 @@ A branch and bound solver using a queue.
 ### Visualise data :
 You can visualise data after each step of the preprecessing. 
 
-#### public void visualize_data(int channel, String additionnal_title, boolean lp_filtred)
-Plots terms in class channel (profit, weight). Set lp_filtred to true to visualise data after without the LP-dominated terms, otherwise the method plots whatever is in data field (Depending on when the method is called, in can plot raw or filtered data).
+#### public void visualize_data(int _class, String additionnal_title, boolean lp_filtred)
+Plots terms in _class (profit, weight). Set lp_filtred to true to visualise data after without the LP-dominated terms, otherwise the method plots whatever is in data field (Depending on when the method is called, in can plot raw or filtered data).
 
 
 
