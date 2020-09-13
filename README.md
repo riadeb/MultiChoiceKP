@@ -5,6 +5,8 @@ Multiple approaches are possible, both to the exact and relaxed problem. This re
 
 This repository contains a multichoice knapsack problem solver, using various techniques. We also use a concrete example of multi-channel communication to illustrate the problem and the solver.
 
+For a full description of the problem : 
+
 ## MCKP Solver
 The main class is solver/MCKP_Solver. Each MCKP_Solver object contains problem data, and implements different methods to preprocess the data and solve the problem.
 
