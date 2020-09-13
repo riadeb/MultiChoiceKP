@@ -19,3 +19,32 @@ Removes IP dominated terms (in place). See document below for full explanation
 #### remove_LP_dominated():
 Removed LP dominated terms. This is done by inserted non-dominated terms in the field  LP_filtered_data. This is not done in place because this prepocessing step is only usefull when solving the relaxed LP problem.
 
+### Solver methods :
+
+#### public Solution greedy_LP() :
+Applies the greedy approach to solve the LP-relaxed problem. Returns a Solution object, containing the rate achieved and an array of terms chosen in each class.
+
+#### public double LP_solver() :
+Uses scpsolver library to solve the LP-relaxed problem. The library used the simplex method to solve the problem.
+
+#### public int DP_1() :
+Uses a first dynammic programming approach to solve the exact MCKP problem.
+
+#### public int DP_2(int U) :
+Uses a second dynammic programming approach. The method needs an upper bound for the maximum rate achieved. An upper bound can be computed by upper_bnd_Rate() method.
+
+#### public int Braunch_and_bound() :
+Solves the problem using a branch and bound approach, recursively.
+
+#### public int BB_with_queue() :
+A branch and bound solver using a queue.
+
+### Visualise data :
+You can visualise data after each step of the preprecessing. 
+
+#### public void visualize_data(int channel, String additionnal_title, boolean lp_filtred)
+Plots terms in class channel (profit, weight). Set lp_filtred to true to visualise data after without the LP-dominated terms, otherwise the method plots whatever is in data field (Depending on when the method is called, in can plot raw or filtered data).
+
+
+
+
