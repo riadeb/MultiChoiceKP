@@ -10,21 +10,20 @@ import org.jfree.data.xy.XYSeriesCollection;
 import java.util.LinkedList;
 
 import javax.swing.*;
-import java.util.ArrayList;
 
 public class Plot extends JFrame {
-    public Plot(String title, LinkedList<Term> [] data, int channel){
+    public Plot(String title, LinkedList<Term> [] data, int _class){
         super(title);
         XYSeriesCollection dataset = new XYSeriesCollection();
-        XYSeries series = new XYSeries("channel");
-        for (Term pp :data[channel]) {
-            series.add(pp.p, pp.r);
+        XYSeries series = new XYSeries("_class");
+        for (Term pp :data[_class]) {
+            series.add(pp.weight, pp.profit);
 
         }
         dataset.addSeries(series);
 
         JFreeChart chart = ChartFactory.createScatterPlot(
-                "Channel "+ String.valueOf(channel),
+                "Channel "+ String.valueOf(_class),
                 "X-Axis",
                 "Y-Axis",
                 dataset,
