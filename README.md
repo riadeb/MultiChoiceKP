@@ -5,7 +5,7 @@ Multiple approaches are possible, both to the exact and relaxed problem. This re
 
 This repository contains a multichoice knapsack problem solver, using various techniques. We also use a concrete example of multi-channel communication to illustrate the problem and the solver.
 
-For a full description of the problem : 
+For a full description of the problem : https://www.riadebenbaki.com//files/MCKP_for_user_scheduling.pdf
 
 ## Main class
 This class uses the solver/MCKP_Solver class in order to solve the multi-channel communication problem. It offers a way to test the solver and to compare performance of the different approaches. We give 5 test files in the folder testfiles. These are the files we used to test and compare the solver.
